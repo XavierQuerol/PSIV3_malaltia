@@ -1,5 +1,5 @@
-from model import Autoencoder
-from dataset import Dataset
+from model_autoencoder import Autoencoder
+from dataset_autoencoder import Dataset
 import torch
 import os
 import pandas as pd
@@ -52,7 +52,7 @@ for dir in directories:
         img = img/255
         img = transform(img)
         model.eval()
-        img_processed = model(img)
+        img_processed = model(img, "mlp")
         red_pixels_original = red_pixels(img)
         red_pixels_output = red_pixels(img_processed)
 
