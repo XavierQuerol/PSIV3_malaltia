@@ -5,7 +5,7 @@ class Autoencoder(nn.Module):
     def __init__(self):
         super(Autoencoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(4, 64, kernel_size=4, stride=2, padding=1),  # Convolutional layer 1
+            nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),  # Convolutional layer 1
             nn.ReLU(),
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # Convolutional layer 2
             nn.ReLU(),
@@ -17,7 +17,7 @@ class Autoencoder(nn.Module):
             nn.ReLU(),
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # Deconvolutional layer 2
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 4, kernel_size=4, stride=2, padding=1),  # Deconvolutional layer 3
+            nn.ConvTranspose2d(64, 3, kernel_size=4, stride=2, padding=1),  # Deconvolutional layer 3
             nn.Sigmoid()  # Sigmoid activation for output
         )
 

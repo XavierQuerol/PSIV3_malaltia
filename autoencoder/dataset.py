@@ -16,12 +16,12 @@ class ImagesDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        img = read_image(self.data_dir+self.data[idx])
+        img = read_image(self.data_dir+self.data[idx])[:-1,:,:]
         img = img.to(torch.float32)
         img = img/255
-        target = self.data[idx]
+        target = self.target[idx]
 
         if self.transforms:
             img = self.transforms(img)
 
-        return img, torch.Tensor([target])
+        return img, torch.Tensor(target)

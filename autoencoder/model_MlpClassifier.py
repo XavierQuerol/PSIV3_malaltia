@@ -7,7 +7,7 @@ class Classifier(nn.Module):
             nn.Linear(input_dim, 128), 
             nn.Linear(128, 128),
             nn.Linear(128, 16),
-            nn.Linear(128, output_dim)
+            nn.Linear(16, output_dim)
         )
             
     def forward(self, x):

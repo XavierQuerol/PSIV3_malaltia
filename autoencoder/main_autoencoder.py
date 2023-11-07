@@ -59,6 +59,7 @@ for epoch in range(num_epochs):
     model.train()
     total_loss = 0
     for batch_idx, (images,_) in enumerate(train_dataloader):  # No labels are needed
+        print("hey")
         images = images.to(device)
         optimizer.zero_grad()
         outputs = model(images, "autoencoder")
