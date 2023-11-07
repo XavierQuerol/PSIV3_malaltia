@@ -6,6 +6,7 @@ import pandas as pd
 import cv2
 import numpy as np
 from sklearn.metrics import roc_curve, auc
+import sklearn.metrics as metrics
 import matplotlib.pyplot as plt
 from torchvision import transforms
 from torchvision.io import read_image
@@ -82,6 +83,17 @@ plt.savefig(f"{PLOT_LOSS_DIR}ROCcurve.png")
 J = tpr - fpr
 best_threshold = thresholds[np.argmax(J)]
 print(best_threshold)
+
+# Define the target and predicted labels using the best threshold
+predicted_labels = [0 if prob < best_threshold else 1 for prob in props]
+
+
+# Calculate the confusion matrix
+confusion_matrix = metrics.confusion_matrix(targets, predicted_labels)
+
+# Print the confusion matrix
+print("Confusion matrix:")
+print(confusion_matrix)
         
 
 
