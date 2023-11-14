@@ -10,10 +10,11 @@ from torchvision import transforms
 from torchvision.io import read_image
 
 from model_autoencoder import Autoencoder
+from model_MlpClassifier import Classifier
 from dataset import ImagesDataset
 from utils import plot_losses
 
-from config import SAVED_MODEL, ANNOTATED_PATCHES_DIR, METADATA_FILE, WINDOW_METADATA_FILE, CROPPED_PATCHES_DIR, SAVE_MODEL_DIR, PLOT_LOSS_DIR
+from config import *
 
 model = Autoencoder()
 model.load_state_dict(torch.load(SAVED_MODEL))
@@ -34,7 +35,19 @@ test_transform = transforms.Compose([
     transforms.Normalize(mean=[0.5], std=[0.5])  # Adjust mean and std as needed
 ])
 
-
+metadata = pd.read_csv(WINDOW_METADATA_FILE)
+targets = []
+files = []
+metadata[['IDPacient','IDWindow']] = metadata['ID'].str.split('.', n=1, expand=True)
+for d in os.listdir(ANNOTATED_PATCHES_DIR):
+    if d in list(metadata['IDPacient']):
+        for p in os.listdir(ANNOTATED_PATCHES_DIR+'/'+d):
+            try:
+                id = d+'.'+p[:-4]
+                targets.append(int(metadata[metadata['ID'] == id]['Presence']))
+                files.append(ANNOTATED_PATCHES_DIR+'/'+d+'/'+p)
+            except:
+                continue
 
 
 data = files[:int(len(files)*0.8)]
@@ -49,7 +62,9 @@ test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)  # No n
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = "cpu"
 
-model = Autoencoder().to(device)
+
+
+model2 = Classifier(input_dim).to(device)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
