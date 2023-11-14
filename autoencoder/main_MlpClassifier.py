@@ -17,7 +17,7 @@ from utils import plot_losses
 from config import *
 
 model = Autoencoder()
-model.load_state_dict(torch.load(SAVED_MODEL))
+model.load_state_dict(torch.load(f'{SAVE_MODEL_DIR}model_AUTOENCODER.pth'))
 
 metadata = pd.read_csv(METADATA_FILE)
 window_metadata = pd.read_csv(WINDOW_METADATA_FILE)
@@ -44,30 +44,40 @@ for d in os.listdir(ANNOTATED_PATCHES_DIR):
         for p in os.listdir(ANNOTATED_PATCHES_DIR+'/'+d):
             try:
                 id = d+'.'+p[:-4]
-                targets.append(int(metadata[metadata['ID'] == id]['Presence']))
-                files.append(ANNOTATED_PATCHES_DIR+'/'+d+'/'+p)
+                target = int(metadata[metadata['ID'] == id]['Presence'])
+                if target == -1:
+                    targets.append(0)
+                    files.append(d+'/'+p)
+                elif target == 1:
+                    targets.append(1)
+                    files.append(+d+'/'+p)
             except:
                 continue
 
 
 data = files[:int(len(files)*0.8)]
-train_dataset = ImagesDataset(data=data, targets=targets, data_dir=CROPPED_PATCHES_DIR, transform=train_transform)
+targets_train = targets[:int(len(files)*0.8)]
+train_dataset = ImagesDataset(data=data, targets=targets_train, data_dir=ANNOTATED_PATCHES_DIR, transform=train_transform)
 train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
 data = files[int(len(files)*0.8):]
-
-test_dataset = ImagesDataset(data=data, data_dir=CROPPED_PATCHES_DIR, transform=test_transform)
+targets_test = targets[int(len(files)*0.8):]
+test_dataset = ImagesDataset(data=data, targets=targets_test, data_dir=ANNOTATED_PATCHES_DIR, transform=test_transform)
 test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)  # No need to shuffle for testing
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = "cpu"
 
-
+input_dim = 256
 
 model2 = Classifier(input_dim).to(device)
 
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+ones = sum(targets)/len(targets)
+zeros = 1 - ones
+pos_weight = zeros / (1 - zeros)
+
+criterion = nn.BCELoss(torch.Tensor([pos_weight]))
+optimizer = optim.Adam(model2.parameters(), lr=0.001)
 
 train_losses = []
 test_losses = []
@@ -77,13 +87,16 @@ num_epochs = 5
 
 for epoch in range(num_epochs):
     # Training loop
-    model.train()
+    model.eval()
+    model2.train()
     total_loss = 0
     for batch_idx, (images, labels) in enumerate(train_dataloader):
         images = images.to(device)
         labels = labels.to(device)
         optimizer.zero_grad()
-        outputs = model(images)
+        with torch.no_grad():
+            features = model(images, "encoder").reshape([-1, input_dim])
+        outputs = model2(features)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -95,7 +108,7 @@ for epoch in range(num_epochs):
     print(f'Epoch [{epoch + 1}/{num_epochs}], Train Loss: {average_loss:.4f}')
 
     # Testing loop (outside the training loop)
-    model.eval()
+    model2.eval()
     total_loss_test = 0
     correct = 0
     total = 0
@@ -103,12 +116,13 @@ for epoch in range(num_epochs):
         for images, labels in test_dataloader:
             images = images.to(device)
             labels = labels.to(device)
-            test_outputs = model(images)
+            test_outputs = model(images, "encoder").reshape([-1, input_dim])
+            test_outputs = model2(test_outputs)
             test_loss = criterion(test_outputs, labels)
             total_loss_test += test_loss.item()
 
             # Calculate accuracy
-            _, predicted = torch.max(test_outputs.data, 1)
+            predicted = torch.where(test_outputs > 0.5, torch.tensor(1), torch.tensor(0))
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 

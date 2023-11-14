@@ -30,7 +30,7 @@ directories = [dir.path for dir in os.scandir(CROPPED_PATCHES_DIR) if dir.is_dir
 
 files = [os.path.join(directory.split("/")[-1], file) for directory in directories for file in os.listdir(directory)]
 random.shuffle(files)
-files = files[:2000]
+files = files[:200]
 data = files[:int(len(files)*0.8)]
 targets = [0 for d in range(len(data))]
 train_dataset = ImagesDataset(data=data, targets=targets, data_dir=CROPPED_PATCHES_DIR, transform=train_transform)
@@ -59,7 +59,6 @@ for epoch in range(num_epochs):
     model.train()
     total_loss = 0
     for batch_idx, (images,_) in enumerate(train_dataloader):  # No labels are needed
-        print("hey")
         images = images.to(device)
         optimizer.zero_grad()
         outputs = model(images, "autoencoder")
