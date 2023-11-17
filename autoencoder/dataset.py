@@ -24,4 +24,8 @@ class ImagesDataset(Dataset):
         if self.transforms:
             img = self.transforms(img)
 
-        return img, torch.Tensor([target])
+        if target == 0:
+            target = [1,0]
+        else:
+            target = [0,1]
+        return img, torch.Tensor(target)
