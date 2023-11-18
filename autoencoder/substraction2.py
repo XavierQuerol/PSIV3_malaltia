@@ -36,13 +36,11 @@ def red_pixels(img):
 
 targets = []
 props = []
-max_pats = []
-mean_pats = []
-quantil25 = []
-quantil50 = []
-quantil75 = []
-restes = []
-eps=10
+target_patch = []
+val_ppatch = []
+prop_pat = []
+eps = 10
+dirs_patch = []
 
 for dir in directories:
     if metadata.loc[metadata["CODI"] == dir.split("/")[-1].split("_")[0], "DENSITAT"].values[0] == "NEGATIVA":
@@ -53,9 +51,11 @@ for dir in directories:
     if len(files) == 0:
         continue
     predict_patches = 0
-    prop_pac = []
-    resta = []
     for file in files:
+        if window_metadata.loc[window_metadata["ID"] == str(dir.split("/")[-1])+"."+file[:-4], "Presence"].values == -1:
+            target_patch.append(0)
+        else:
+            target_patch.append(1)
         img = read_image(os.path.join(dir, file))[:-1,:,:]
         img = img.to(torch.float32)
         img = img/255
@@ -65,32 +65,17 @@ for dir in directories:
         red_pixels_original = red_pixels(img)
         red_pixels_output = red_pixels(img_processed)
 
-        if ((red_pixels_original+eps)/(red_pixels_output+eps)) > 1:
+        if red_pixels_original > red_pixels_output:
                 predict_patches += 1
-
-        if red_pixels_original == 0 and red_pixels_output == 0:
-            prop_pac.append(0)
-        elif red_pixels_original == 0:
-            prop_pac.append(0) 
-        else: 
-            prop_pac.append(red_pixels_output/red_pixels_original)
-        
-        resta.append(-red_pixels_output+red_pixels_original)
-    prop_pac = sorted(prop_pac)
-    max_pat = max(prop_pac)   
-    mean_pat = sum(prop_pac)/len(prop_pac)  
-    quantil25.append(prop_pac[int(len(prop_pac)/10)*7]) 
-    quantil50.append(prop_pac[int(len(prop_pac)/10)*8]) 
-    quantil75.append(prop_pac[int(len(prop_pac)/10)*9])
-    restes.append(max(resta))
+                val_ppatch.append(1)
+        else:
+            val_ppatch.append(0)
+        prop_pat.append((red_pixels_original+eps)/(red_pixels_output+eps))
+        dirs_patch.append(dir+'/'+file)
     prop = predict_patches/len(files)
 
     targets.append(target)
     props.append(prop)
-    max_pats.append(max_pat)
-    mean_pats.append(mean_pat)
-df = pd.DataFrame({'max': max_pats, 'mean': mean_pats, 'prop': props, 'q25': quantil25, 'q50': quantil50, 'q75': quantil75, 'resta': restes, 'target': targets})
-print(df)
 
 final_results = pd.DataFrame({"Target": targets, "Prop": props})
 
@@ -114,7 +99,6 @@ print(best_threshold)
 # Define the target and predicted labels using the best threshold
 predicted_labels = [0 if prob < best_threshold else 1 for prob in props]
 
-
 # Calculate the confusion matrix
 confusion_matrix = metrics.confusion_matrix(targets, predicted_labels)
 
@@ -122,45 +106,40 @@ confusion_matrix = metrics.confusion_matrix(targets, predicted_labels)
 print("Confusion matrix:")
 print(confusion_matrix)
 
+final_results2 = pd.DataFrame({"Target": target_patch, "Prop": prop_pat, "Dirs": dirs_patch})
 
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+fpr2, tpr2, thresholds2 = roc_curve(final_results2['Target'], final_results2['Prop'])
+roc_auc2 = auc(fpr2, tpr2)
+plt.figure(figsize=(8, 6))
+plt.plot(fpr2, tpr2, color='darkorange', lw=2, label=f'ROC curve patches (AUC = {roc_auc2:.2f})')
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc='lower right')
+plt.savefig(f"{PLOT_LOSS_DIR}ROCcurve2.png")
 
-# Load the breast cancer dataset for binary classification
-X = df.drop(columns = ["target"])
-y = df['target']
+J2 = tpr2 - fpr2
+best_threshold2 = thresholds2[np.argmax(J2)]
+print(best_threshold2)
 
-# Split the dataset into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Define the target and predicted labels using the best threshold
+predicted_labels2 = [0 if prob2 < best_threshold2 else 1 for prob2 in prop_pat]
 
-# Create a GradientBoostingClassifier for binary classification
-gb_classifier = GradientBoostingClassifier(
-    n_estimators=100,           # Number of boosting rounds (trees to build)
-    learning_rate=0.1,          # Step size shrinkage to prevent overfitting
-    max_depth=3,                # Maximum depth of a tree
-    random_state=42             # Seed for reproducibility
-)
 
-# Train the classifier on the training data
-gb_classifier.fit(X_train, y_train)
+# Calculate the confusion matrix
+confusion_matrix2 = metrics.confusion_matrix(target_patch, predicted_labels2)
 
-# Make predictions on the test data
-y_pred = gb_classifier.predict(X_test)
+# Print the confusion matrix
+print("Confusion matrix patches:")
+print(confusion_matrix2)
 
-# Evaluate the performance of the classifier
-accuracy = accuracy_score(y_test, y_pred)
-conf_matrix = confusion_matrix(y_test, y_pred)
-classification_rep = classification_report(y_test, y_pred)
 
-print(f"Accuracy: {accuracy:.2f}")
-print("Confusion Matrix:")
-print(conf_matrix)
-print("Classification Report:")
-print(classification_rep)
         
 
-
+print(final_results2)
 
 
     

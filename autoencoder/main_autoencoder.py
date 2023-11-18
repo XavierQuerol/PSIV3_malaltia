@@ -30,7 +30,7 @@ directories = [dir.path for dir in os.scandir(CROPPED_PATCHES_DIR) if dir.is_dir
 
 files = [os.path.join(directory.split("/")[-1], file) for directory in directories for file in os.listdir(directory)]
 random.shuffle(files)
-files = files[:200]
+files = files[:6000]
 data = files[:int(len(files)*0.8)]
 targets = [0 for d in range(len(data))]
 train_dataset = ImagesDataset(data=data, targets=targets, data_dir=CROPPED_PATCHES_DIR, transform=train_transform)
@@ -42,9 +42,17 @@ test_dataset = ImagesDataset(data=data, targets=targets, data_dir=CROPPED_PATCHE
 test_dataloader = DataLoader(test_dataset, batch_size=32, shuffle=False)  # No need to shuffle for testing
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = "cpu"
 
 model = Autoencoder().to(device)
+def initialize_weights(m):
+    if isinstance(m, nn.Conv2d):
+        nn.init.xavier_normal_(m.weight.data)
+        nn.init.constant_(m.bias.data, 0)
+    elif isinstance(m, nn.Linear):
+        nn.init.xavier_normal_(m.weight.data)
+    
+# Applying it to our net
+model.apply(initialize_weights)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -52,7 +60,7 @@ train_losses = []
 test_losses = []
 
 plot_interval = 10  # Define the interval for plotting losses
-num_epochs = 5
+num_epochs = 10
 
 for epoch in range(num_epochs):
     # Training loop
@@ -96,4 +104,4 @@ for epoch in range(num_epochs):
 
 
 # Save the trained model if needed
-torch.save(model.state_dict(), f'{SAVE_MODEL_DIR}model_AUTOENCODER.pth')
+torch.save(model.state_dict(), f'{SAVE_MODEL_DIR}model2_AUTOENCODER.pth')
