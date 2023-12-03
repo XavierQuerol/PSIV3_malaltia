@@ -10,10 +10,10 @@ from torchvision import transforms
 from torchvision.io import read_image
 import random
 
-from model_autoencoder import Autoencoder
+from ..baseline import model_autoencoder
 from model_CNN_MlpClassifier import Classifier
 from torchvision import models
-from dataset import ImagesDataset
+from utils import ImagesDataset
 from utils import plot_losses, plot_confusion_matrix
 
 from config import *
