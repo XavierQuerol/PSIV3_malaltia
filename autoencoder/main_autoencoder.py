@@ -15,13 +15,13 @@ from utils import plot_losses
 
 # Define transformations and data loaders for training and testing
 train_transform = transforms.Compose([
-    transforms.Resize((128, 128), antialias=True),
-    transforms.Normalize(mean=[0.5], std=[0.5])  # Adjust mean and std as needed
+    transforms.Resize((64, 64), antialias=True),  # Adjust mean and std as needed
+    transforms.Normalize(mean=[0.5], std=[0.5])
 ])
 
 test_transform = transforms.Compose([
-    transforms.Resize((128, 128), antialias=True),
-    transforms.Normalize(mean=[0.5], std=[0.5])  # Adjust mean and std as needed
+    transforms.Resize((64, 64), antialias=True),  # Adjust mean and std as needed
+    transforms.Normalize(mean=[0.5], std=[0.5])
 ])
 
 metadata = pd.read_csv(METADATA_FILE)
@@ -30,7 +30,7 @@ directories = [dir.path for dir in os.scandir(CROPPED_PATCHES_DIR) if dir.is_dir
 
 files = [os.path.join(directory.split("/")[-1], file) for directory in directories for file in os.listdir(directory)]
 random.shuffle(files)
-files = files[:6000]
+files = files[:15000]
 data = files[:int(len(files)*0.8)]
 targets = [0 for d in range(len(data))]
 train_dataset = ImagesDataset(data=data, targets=targets, data_dir=CROPPED_PATCHES_DIR, transform=train_transform)
@@ -53,14 +53,17 @@ def initialize_weights(m):
     
 # Applying it to our net
 model.apply(initialize_weights)
-criterion = nn.MSELoss()
+criterion = nn.MSELoss().to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.001)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=3, factor=1/3)
 
 train_losses = []
 test_losses = []
 
 plot_interval = 10  # Define the interval for plotting losses
-num_epochs = 10
+num_epochs = 15
+
+best_test_loss  = 999
 
 for epoch in range(num_epochs):
     # Training loop
@@ -100,8 +103,11 @@ for epoch in range(num_epochs):
     test_losses.append(average_loss_test)
 
     # Plot final loss
-    plot_losses(train_losses, test_losses, PLOT_LOSS_DIR)
+    plot_losses(train=train_losses, test=test_losses, path=PLOT_LOSS_DIR, name_plot=f"main_autoencoder_losses",
+                    title="Loss over epoch", axis_x="Epoch", axis_y="Loss", label_1="Train losses", label_2="Test losses")
 
-
-# Save the trained model if needed
-torch.save(model.state_dict(), f'{SAVE_MODEL_DIR}model2_AUTOENCODER.pth')
+    scheduler.step(average_loss_test)
+    # Save the trained model if needed
+    if average_loss_test < best_test_loss:
+        best_test_loss = average_loss_test
+        torch.save(model.state_dict(), f'{SAVE_MODEL_DIR}model5_AUTOENCODER.pth')

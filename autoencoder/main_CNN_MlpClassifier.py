@@ -14,7 +14,7 @@ from model_autoencoder import Autoencoder
 from model_CNN_MlpClassifier import Classifier
 from torchvision import models
 from dataset import ImagesDataset
-from utils import plot_losses
+from utils import plot_losses, plot_confusion_matrix
 
 from config import *
 
@@ -27,17 +27,17 @@ directories = [dir.path for dir in os.scandir(ANNOTATED_PATCHES_DIR) if dir.is_d
 
 # Define transformations and data loaders for training and testing
 train_transform = transforms.Compose([
-    transforms.Resize((64, 64), antialias=True),
+    transforms.Resize((128, 128), antialias=True),
     transforms.RandomHorizontalFlip(p=0.5),  
     transforms.RandomVerticalFlip(p=0.5),  
-    transforms.RandomPerspective(distortion_scale=0.5, p=0.2),  # Adjust distortion_scale as needed
-    transforms.RandomRotation(degrees=(0, 360)),  # Rotate in all angles
+    transforms.RandomPerspective(distortion_scale=0.5, p=0.5),  # Adjust distortion_scale as needed
+    transforms.RandomRotation(degrees=(0, 8)),  # Rotate in all angles
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Adjust mean and std as needed
 ])
 
 test_transform = transforms.Compose([
-    transforms.Resize((64, 64), antialias=True),
-    transforms.Normalize(mean=[0.5], std=[0.5])  # Adjust mean and std as needed
+    transforms.Resize((128, 128), antialias=True),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Adjust mean and std as needed
 ])
 
 metadata = pd.read_csv(WINDOW_METADATA_FILE)
@@ -55,7 +55,7 @@ for d in os.listdir(ANNOTATED_PATCHES_DIR):
                     files.append(d+'/'+p)
                 elif target == 1:
                     targets.append(1)
-                    files.append(+d+'/'+p)
+                    files.append(d+'/'+p)
             except:
                 continue
 
@@ -77,7 +77,7 @@ test_dataset = ImagesDataset(data=data, targets=targets_test, data_dir=ANNOTATED
 test_dataloader = DataLoader(test_dataset, batch_size=16, shuffle=False)  # No need to shuffle for testing
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = "cpu"
+print(device)
 
 def initialize_weights(m):
         if isinstance(m, nn.Conv2d):
@@ -87,11 +87,11 @@ def initialize_weights(m):
             nn.init.xavier_normal_(m.weight.data)
 
 if model_to_train == "our_classifier":
-    model = Classifier().to(device)
+    model = Classifier()
     model.apply(initialize_weights)
 
 elif model_to_train == "resnet":
-    model = models.resnet50(pretrained=True).to(device)
+    model = models.resnet50(pretrained=True)
     for param in model.parameters():
         param.requires_grad = False
     num_ftrs = model.fc.in_features
@@ -106,20 +106,25 @@ elif model_to_train == "resnet":
     for param in model.layer4.parameters():
         param.requires_grad = True
 
+model.to(device)
+
 ones = sum(targets[:int(len(files)*0.8)])/len(targets[:int(len(files)*0.8)])
 zeros = 1 - ones
 
-criterion = torch.nn.CrossEntropyLoss(weight=torch.Tensor([1, zeros / ones]))
+criterion = torch.nn.CrossEntropyLoss(weight=torch.Tensor([1, zeros/ones])).to(device)
 #criterion = nn.BCELoss(weight=torch.Tensor(1000))
-optimizer = optim.Adam(model.parameters(), lr=0.0001)
+lr = 0.0001
+optimizer = optim.Adam(model.parameters(), lr)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=1/3)
 
 train_losses = []
 test_losses = []
 train_accuracies = []
 test_accuracies = []
 
-plot_interval = 10  # Define the interval for plotting losses
-num_epochs = 100
+best_test_loss = 999
+
+num_epochs = 200
 
 for epoch in range(num_epochs):
     # Training loop
@@ -127,6 +132,8 @@ for epoch in range(num_epochs):
     total_loss = 0
     correct = 0
     total = 0
+    predicted_train = []
+    labels_train = []
     for batch_idx, (images, labels) in enumerate(train_dataloader):
         images = images.to(device)
         labels = labels.to(device)
@@ -141,6 +148,8 @@ for epoch in range(num_epochs):
         labels = torch.argmax(labels, dim=1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
+        predicted_train += predicted.tolist()
+        labels_train += labels.tolist()
 
         
     # Calculate average loss over the dataset
@@ -154,6 +163,8 @@ for epoch in range(num_epochs):
     total_loss_test = 0
     correct = 0
     total = 0
+    predicted_test = []
+    labels_test = []
     with torch.no_grad():
         for images, labels in test_dataloader:
             images = images.to(device)
@@ -168,6 +179,8 @@ for epoch in range(num_epochs):
             labels = torch.argmax(labels, dim=1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            predicted_test += predicted.tolist()
+            labels_test += labels.tolist()
 
     # Calculate average test loss and accuracy
     average_loss_test = total_loss_test / len(test_dataloader)
@@ -183,9 +196,20 @@ for epoch in range(num_epochs):
 
     # Plot final loss
     if epoch != 0:
-        plot_losses(train_losses, test_losses, PLOT_LOSS_DIR, f"main_{model_to_train}_losses", "Train loss", "Test loss")
-        plot_losses(train_accuracies, test_accuracies, PLOT_LOSS_DIR, f"main_{model_to_train}_accuracy", "Train accuracy", "Test accuracy")
+        plot_losses(train=train_losses, test=test_losses, path=PLOT_LOSS_DIR, name_plot=f"main_{model_to_train}_losses",
+                    title="Loss over epoch", axis_x="Epoch", axis_y="Loss", label_1="Train losses", label_2="Test losses")
 
+        plot_losses(train=train_accuracies, test=test_accuracies, path=PLOT_LOSS_DIR, name_plot=f"main_{model_to_train}_accuracy",
+                    title="Accuracy over epoch", axis_x="Epoch", axis_y="Accuracy", label_1="Train accuracy", label_2="Test accuracy")
+        
+        plot_confusion_matrix(target=labels_train, predictions=predicted_train, path=PLOT_LOSS_DIR, name_plot=f"main_{model_to_train}_MC_train")
+        plot_confusion_matrix(target=labels_test, predictions=predicted_test, path=PLOT_LOSS_DIR, name_plot=f"main_{model_to_train}_MC_test")
+                    
 
+    scheduler.step(average_loss_test)
+    print(optimizer.param_groups[0]['lr'])
+
+    if average_loss_test < best_test_loss:
+        best_test_loss = average_loss_test
+        torch.save(model.state_dict(), f'{SAVE_MODEL_DIR}model_MLP{model_to_train}.pth')
 # Save the trained model if needed
-torch.save(model.state_dict(), f'{SAVE_MODEL_DIR}model_MLP.pth')
