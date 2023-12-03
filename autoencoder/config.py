@@ -1,7 +1,0 @@
-METADATA_FILE = "/fhome/mapsiv/QuironHelico/CroppedPatches/metadata.csv"
-CROPPED_PATCHES_DIR = "/fhome/mapsiv/QuironHelico/CroppedPatches/"
-SAVE_MODEL_DIR = "/fhome/mapsiv01/PSIV3_malaltia/autoencoder/models/"
-PLOT_LOSS_DIR = "/fhome/mapsiv01/PSIV3_malaltia/autoencoder/plots/"
-SAVED_MODEL = "/fhome/mapsiv01/PSIV3_malaltia/autoencoder/models/model5_AUTOENCODER.pth"
-ANNOTATED_PATCHES_DIR = "/fhome/mapsiv/QuironHelico/AnnotatedPatches/"
-WINDOW_METADATA_FILE = "/fhome/mapsiv/QuironHelico/AnnotatedPatches/window_metadata.csv"
