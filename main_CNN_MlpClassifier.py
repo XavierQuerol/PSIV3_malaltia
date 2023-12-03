@@ -14,7 +14,7 @@ from utils import plot_losses, plot_confusion_matrix
 
 from config import *
 
-model_to_train = "resnet"
+model_to_train = "our_classifier" #"resnet" 
 
 metadata = pd.read_csv(METADATA_FILE)
 window_metadata = pd.read_csv(WINDOW_METADATA_FILE)

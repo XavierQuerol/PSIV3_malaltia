@@ -15,12 +15,12 @@ def plot_losses(train, test, path, name_plot, title, axis_x, axis_y, label_1, la
     plt.title(title)
     plt.savefig(f"{path}{name_plot}.png")
 
-def plot_confusion_matrix(target, predictions, path, name_plot):
+def plot_confusion_matrix(target, predictions): #, path, name_plot):
     cm = confusion_matrix(target, predictions, labels=[0,1])
     disp = ConfusionMatrixDisplay(confusion_matrix=cm,
                               display_labels=[0,1])
     disp.plot()
-    plt.savefig(f"{path}{name_plot}.png")
+    #plt.savefig(f"{path}{name_plot}.png")
 
 
 class ImagesDataset(Dataset):
