@@ -3,8 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
-from PIL import Image
-from dataset import ImagesDataset
+from utils import ImagesDataset
 from model_autoencoder import Autoencoder
 from config import METADATA_FILE, CROPPED_PATCHES_DIR, SAVE_MODEL_DIR, PLOT_LOSS_DIR
 import os
