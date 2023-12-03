@@ -31,14 +31,6 @@ class Autoencoder(nn.Module):
         )
 
 
-    """def forward(self, x, mode):
-        x2 = self.encoder(x)
-        if mode == "autoencoder":
-            x3 = self.decoder(x2)
-            return x3
-        else:
-            return x2"""
-
     def forward(self, x, mode):
             # Encoder
             x, indices1 = nn.MaxPool2d(kernel_size=2, stride=2, return_indices=True)(self.encoder[0](x))

@@ -1,16 +1,12 @@
 import torch
 import os
-import cv2
 import pandas as pd
-import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.io import read_image
 import random
 
-from ..baseline import model_autoencoder
 from model_CNN_MlpClassifier import Classifier
 from torchvision import models
 from utils import ImagesDataset
